@@ -48,6 +48,7 @@ namespace STATE_ESTIMATOR {
         BNO08x IMU;
         static StateEstimator *instancePtr;
         repeating_timer_t *timer;
+        const uint32_t timerInterval = 50;  // Interval in milliseconds
         State estimatedState;
         State previousState;
         COMMON::DriveTrainState currentDriveTrainState;
