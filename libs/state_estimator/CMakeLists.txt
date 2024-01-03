@@ -3,6 +3,7 @@ add_library(state_estimator STATIC
 )
 
 target_link_libraries(state_estimator PUBLIC
+        bno080
         common
         config
         motor2040
@@ -11,4 +12,6 @@ target_link_libraries(state_estimator PUBLIC
 
 target_include_directories(state_estimator PUBLIC
         include
+        bno080
+        config
 )

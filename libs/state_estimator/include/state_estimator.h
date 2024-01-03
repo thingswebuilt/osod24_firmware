@@ -10,6 +10,7 @@
 #include "motor2040.hpp"
 #include "drivetrain_config.h"
 #include "types.h"
+#include "bno080.h"
 
 using namespace motor;
 using namespace encoder;
@@ -44,6 +45,7 @@ namespace STATE_ESTIMATOR {
 
     private:
         Encoders encoders;
+        BNO08x IMU;
         static StateEstimator *instancePtr;
         repeating_timer_t *timer;
         State estimatedState;

@@ -4,6 +4,7 @@
 #include <cstdio>
 #include "state_estimator.h"
 #include "drivetrain_config.h"
+#include "bno080.h"
 
 namespace STATE_ESTIMATOR {
     StateEstimator *StateEstimator::instancePtr = nullptr;
@@ -34,6 +35,12 @@ namespace STATE_ESTIMATOR {
         estimatedState.driveTrainState.angles.left = 0.0f;
         estimatedState.driveTrainState.angles.right = 0.0f;
         
+        if (IMU.begin(CONFIG::BNO08X_ADDR, port)==false) {
+            while (1){
+                printf("BNO08x not detected at default I2C address. Check wiring. Freezin\n");
+                sleep_ms(1000);
+            }
+        }
         instancePtr = this;
         setupTimer();
     }
