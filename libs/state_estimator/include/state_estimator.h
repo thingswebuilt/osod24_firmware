@@ -35,7 +35,7 @@ namespace STATE_ESTIMATOR {
     };
     class StateEstimator {
     public:
-        explicit StateEstimator();
+        explicit StateEstimator(i2c_inst_t* port);
 
         ~StateEstimator();  // Destructor to cancel the timer
         void showValues() const;
