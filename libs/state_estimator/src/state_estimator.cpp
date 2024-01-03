@@ -130,7 +130,8 @@ namespace STATE_ESTIMATOR {
         estimatedState.velocity = (left_speed - right_speed) / 2;
         estimatedState.xdot = estimatedState.velocity * sin(estimatedState.heading);
         estimatedState.ydot = estimatedState.velocity * cos(estimatedState.heading);
-        estimatedState.angularVelocity= 0.001 * (estimatedState.heading - previousState.heading) / timerInterval;
+        //timer is in ms, to get rad/sec we need to multiply by 1000:
+        estimatedState.angularVelocity= 1000 * (estimatedState.heading - previousState.heading) / timerInterval;
     }
 
     void StateEstimator::setupTimer() const {
