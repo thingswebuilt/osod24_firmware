@@ -1,3 +1,5 @@
+
+add_subdirectory(bno080)
 add_subdirectory(common)
 add_subdirectory(config)
 add_subdirectory(navigator)
