@@ -37,8 +37,6 @@ namespace STATEMANAGER {
         COMMON::DriveTrainState currentDriveTrainState{};
         Stokers stokers{};
         SteeringServos steering_servos{};
-        // max speed factor - scale the speed of the motors down to this value
-        static constexpr float SPEED_EXTENT = 1.0f;
 
         void setDriveTrainState(const COMMON::DriveTrainState& motorSpeeds);
     };
