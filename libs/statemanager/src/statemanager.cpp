@@ -5,9 +5,7 @@
 #include <cstdio>
 #include "state_estimator.h"
 #include "statemanager.h"
-
 #include <libraries/servo2040/servo2040.hpp>
-
 #include "motor2040.hpp"
 #include "servo.hpp"
 

@@ -9,6 +9,7 @@
 #include "tank_steer_strategy.h"
 #include "ackermann_strategy.h"
 #include "drivetrain_config.h"
+#include "utils.h"
 
 Navigator *navigator;
 bool shouldNavigate = false;
@@ -21,8 +22,11 @@ extern "C" void timer_callback(repeating_timer_t *t) {
 int main() {
     stdio_init_all();
 
+    i2c_inst_t* i2c_port0;
+    initI2C(i2c_port0, 100 * 1000, CONFIG::I2C_SDA_PIN, CONFIG::I2C_SCL_PIN);
+
     // set up the state estimator
-    auto *pStateEstimator = new STATE_ESTIMATOR::StateEstimator();
+    auto *pStateEstimator = new STATE_ESTIMATOR::StateEstimator(i2c_port0);
 
     // set up the state manager
     using namespace STATEMANAGER;

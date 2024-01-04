@@ -4,11 +4,12 @@
 #include <cstdio>
 #include "state_estimator.h"
 #include "drivetrain_config.h"
+#include "bno080.h"
 
 namespace STATE_ESTIMATOR {
     StateEstimator *StateEstimator::instancePtr = nullptr;
 
-    StateEstimator::StateEstimator() : encoders{
+    StateEstimator::StateEstimator(i2c_inst_t* port) : encoders{
             .FRONT_LEFT =new Encoder(pio0, 0, motor2040::ENCODER_A, PIN_UNUSED, Direction::NORMAL_DIR, CONFIG::COUNTS_PER_REV),
             .FRONT_RIGHT =new Encoder(pio0, 1, motor2040::ENCODER_B, PIN_UNUSED, Direction::NORMAL_DIR, CONFIG::COUNTS_PER_REV),
             .REAR_LEFT = new Encoder(pio0, 2, motor2040::ENCODER_C, PIN_UNUSED, Direction::NORMAL_DIR, CONFIG::COUNTS_PER_REV),
@@ -34,16 +35,27 @@ namespace STATE_ESTIMATOR {
         estimatedState.driveTrainState.angles.left = 0.0f;
         estimatedState.driveTrainState.angles.right = 0.0f;
         
+        if (IMU.begin(CONFIG::BNO08X_ADDR, port)==false) {
+            while (1){
+                printf("BNO08x not detected at default I2C address. Check wiring. Freezin\n");
+                sleep_ms(1000);
+            }
+        }
+        if (IMU.enableRotationVector() == true) {
+            printf("Rotation vector enabled\n");
+        } else {
+            printf("Could not enable rotation vector\n");
+        }
         instancePtr = this;
         setupTimer();
     }
 
     void StateEstimator::showValues() const {
-        printf("FRONT_LEFT: %ld ", encoders.FRONT_LEFT->count());
-        printf("FRONT_RIGHT: %ld ", encoders.FRONT_RIGHT->count());
-        printf("REAR_LEFT: %ld ", encoders.REAR_LEFT->count());
-        printf("REAR_RIGHT: %ld ", encoders.REAR_RIGHT->count());
-        printf("\n");
+        //printf("FRONT_LEFT: %ld ", encoders.FRONT_LEFT->count());
+        //printf("FRONT_RIGHT: %ld ", encoders.FRONT_RIGHT->count());
+        //printf("REAR_LEFT: %ld ", encoders.REAR_LEFT->count());
+        //printf("REAR_RIGHT: %ld ", encoders.REAR_RIGHT->count());
+        //printf("\n");
         printf("X: %f, Y: %f, Velocity: %f, Heading: %f, turn rate: %f\n", 
            estimatedState.x, 
            estimatedState.y, 
@@ -58,6 +70,8 @@ namespace STATE_ESTIMATOR {
 
     void StateEstimator::estimateState() {
         
+        previousState = estimatedState;
+
         //get current encoder state
         const auto captureFL = encoders.FRONT_LEFT->capture();
         const auto captureFR = encoders.FRONT_RIGHT->capture();
@@ -76,30 +90,30 @@ namespace STATE_ESTIMATOR {
         float right_travel = (captureFR.radians_delta() * cos(estimatedState.driveTrainState.angles.right)
                               + captureRR.radians_delta()) / 2;
         
-        // convert wheel rotation to distance travelled in meters
-        left_travel = left_travel * CONFIG::WHEEL_DIAMETER / 2;
-        right_travel = right_travel * CONFIG::WHEEL_DIAMETER / 2;
-
-        const float distance_travelled = (left_travel - right_travel) / 2;
-        const float heading_change = (left_travel + right_travel) / CONFIG::WHEEL_TRACK;
-
-        //calculate new position and orientation
-        //calc a temp heading halfway between old heading and new
-        //assumed to be representative of heading during distance_travelled
-        const float tempHeading = estimatedState.heading + heading_change / 2;
-        estimatedState.x = estimatedState.x + distance_travelled * sin(tempHeading);
-        estimatedState.y = estimatedState.y + distance_travelled * cos(tempHeading);
-
-        //now actually update heading
-        estimatedState.heading = estimatedState.heading + heading_change;
+        //0.25 is because we're getting the average of left and right, so (left + right) / 2
+        // AND we want to multiply by the wheel radius, so DIAMETER / 2, to convert radians to metres
+        //TODO: create a constant "half radius" parameter so we can avoid this scale factor entirely
+        const float distance_travelled = 0.25 * (left_travel - right_travel) * CONFIG::WHEEL_DIAMETER;
         
-        //constrain heading to +/-pi 
+        //update heading
+        if (IMU.getSensorEvent() == true) {
+            if (IMU.getSensorEventID() == SENSOR_REPORTID_ROTATION_VECTOR) {
+                estimatedState.heading = IMU.getYaw();
+            }
+        }
+        
+        //constrain heading to be within +/-pi (wrapping)
         if (estimatedState.heading > M_PI) {
             estimatedState.heading -= 2 * M_PI;
         }
         if (estimatedState.heading < -M_PI) {
             estimatedState.heading += 2 * M_PI;
         }
+
+        //calculate new position
+        estimatedState.x = estimatedState.x + distance_travelled * sin(estimatedState.heading);
+        estimatedState.y = estimatedState.y + distance_travelled * cos(estimatedState.heading);
+
 
         //calculate speeds
 
@@ -125,15 +139,12 @@ namespace STATE_ESTIMATOR {
         estimatedState.velocity = (left_speed - right_speed) / 2;
         estimatedState.xdot = estimatedState.velocity * sin(estimatedState.heading);
         estimatedState.ydot = estimatedState.velocity * cos(estimatedState.heading);
-
-        //now less accurate as we're taking the wrong component of the front wheel speeds. will be taken from IMU in future
-        estimatedState.angularVelocity= (left_speed + right_speed) / CONFIG::WHEEL_TRACK;
-
+        //timer is in ms, to get rad/sec we need to multiply by 1000:
+        estimatedState.angularVelocity= 1000 * (estimatedState.heading - previousState.heading) / timerInterval;
     }
 
     void StateEstimator::setupTimer() const {
         // Example configuration (adjust as needed)
-        constexpr uint32_t timerInterval = 50;  // Interval in milliseconds
 
         // Set up the repeating timer with the callback
         if (!add_repeating_timer_ms(timerInterval,

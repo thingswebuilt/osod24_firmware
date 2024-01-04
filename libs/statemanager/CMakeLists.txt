@@ -15,6 +15,7 @@ target_include_directories(statemanager PUBLIC
         include
         servo
         receiver
+        state_estimator
         stoker
         mixer
         common
