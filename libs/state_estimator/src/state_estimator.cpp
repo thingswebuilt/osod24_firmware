@@ -41,6 +41,11 @@ namespace STATE_ESTIMATOR {
                 sleep_ms(1000);
             }
         }
+        if (IMU.enableRotationVector() == true) {
+            printf("Rotation vector enabled\n");
+        } else {
+            printf("Could not enable rotation vector\n");
+        }
         instancePtr = this;
         setupTimer();
     }
@@ -91,7 +96,11 @@ namespace STATE_ESTIMATOR {
         const float distance_travelled = 0.25 * (left_travel - right_travel) * CONFIG::WHEEL_DIAMETER;
         
         //update heading
-        estimatedState.heading = IMU.getYaw();
+        if (IMU.getSensorEvent() == true) {
+            if (IMU.getSensorEventID() == SENSOR_REPORTID_ROTATION_VECTOR) {
+                estimatedState.heading = IMU.getYaw();
+            }
+        }
         
         //constrain heading to be within +/-pi (wrapping)
         if (estimatedState.heading > M_PI) {
