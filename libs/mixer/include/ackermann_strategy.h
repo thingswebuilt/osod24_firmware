@@ -10,7 +10,7 @@
 #include "types.h"
 
 namespace MIXER {
-
+    using namespace COMMON;
     struct SteeringAngle {
         float raw;
         float constrained;
@@ -29,7 +29,7 @@ namespace MIXER {
                     float base = CONFIG::WHEEL_BASE,
                     float angle = CONFIG::MAX_STEERING_ANGLE); // constructor
 
-        COMMON::DriveTrainState mix(float velocity, float angularVelocity) override; //mixing function
+        DriveTrainState mix(float velocity, float angularVelocity) override; //mixing function
 
         [[nodiscard]] float
         getFrontWheelSpeed(float angularVelocity, float wheelTurnRadius, float slipAngle,

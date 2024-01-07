@@ -3,6 +3,7 @@ add_library(stoker STATIC
 )
 
 target_link_libraries(stoker PUBLIC
+        common
         motor
 )
 

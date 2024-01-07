@@ -24,10 +24,10 @@ namespace STATEMANAGER {
         printf("State estimator created\n");
         printf("State manager created\n");
         // set up the stokers
-        stokers.FRONT_LEFT = new STOKER::Stoker(motor::motor2040::MOTOR_A, Direction::NORMAL_DIR);
-        stokers.FRONT_RIGHT = new STOKER::Stoker(motor::motor2040::MOTOR_B, Direction::NORMAL_DIR);
-        stokers.REAR_LEFT = new STOKER::Stoker(motor::motor2040::MOTOR_C, Direction::NORMAL_DIR);
-        stokers.REAR_RIGHT = new STOKER::Stoker(motor::motor2040::MOTOR_D, Direction::NORMAL_DIR);
+        stokers[MOTOR_POSITION::FRONT_LEFT] = new STOKER::Stoker(motor::motor2040::MOTOR_A, MOTOR_POSITION::FRONT_LEFT, Direction::NORMAL_DIR);
+        stokers[MOTOR_POSITION::FRONT_RIGHT] = new STOKER::Stoker(motor::motor2040::MOTOR_B, MOTOR_POSITION::FRONT_RIGHT, Direction::NORMAL_DIR);
+        stokers[MOTOR_POSITION::REAR_LEFT] = new STOKER::Stoker(motor::motor2040::MOTOR_C, MOTOR_POSITION::REAR_LEFT, Direction::NORMAL_DIR);
+        stokers[MOTOR_POSITION::REAR_RIGHT] = new STOKER::Stoker(motor::motor2040::MOTOR_D, MOTOR_POSITION::REAR_RIGHT, Direction::NORMAL_DIR);
 
         // set up the servos
         // left - ADC2 / PWM 6 - Pin 28
@@ -41,12 +41,11 @@ namespace STATEMANAGER {
         //printf("Velocity: %f ", requestedState.velocity);
         //printf("Angular velocity: %f ", requestedState.angularVelocity);
         //printf("\n");
-        const COMMON::DriveTrainState driveTrainState = mixerStrategy->mix(requestedState.velocity, requestedState.angularVelocity);
+        const DriveTrainState driveTrainState = mixerStrategy->mix(requestedState.velocity, requestedState.angularVelocity);
         setDriveTrainState(driveTrainState);
-        currentDriveTrainState = driveTrainState;
     }
 
-    void StateManager::setServoSteeringAngle(const COMMON::DriveTrainState& driveTrainState, const CONFIG::Handedness side) const {
+    void StateManager::setServoSteeringAngle(const DriveTrainState& driveTrainState, const CONFIG::Handedness side) const {
         servo::Servo *servo;
         float angle;
         float speed;
@@ -54,11 +53,11 @@ namespace STATEMANAGER {
         if (side == CONFIG::Handedness::LEFT) {
             servo = steering_servos.left;
             angle = driveTrainState.angles.left;
-            speed = driveTrainState.speeds.frontLeft;
+            speed = driveTrainState.speeds[MOTOR_POSITION::FRONT_LEFT];
         } else {
             servo = steering_servos.right;
             angle = driveTrainState.angles.right;
-            speed = driveTrainState.speeds.frontRight;
+            speed = driveTrainState.speeds[MOTOR_POSITION::FRONT_RIGHT];
         }
 
         if (std::fabs(speed) > 0.05) {
@@ -71,11 +70,11 @@ namespace STATEMANAGER {
         }
     }
 
-    void StateManager::setDriveTrainState(const COMMON::DriveTrainState& motorSpeeds) {
-        stokers.FRONT_LEFT->set_speed(motorSpeeds.speeds.frontLeft);
-        stokers.FRONT_RIGHT->set_speed(motorSpeeds.speeds.frontRight);
-        stokers.REAR_LEFT->set_speed(motorSpeeds.speeds.rearLeft);
-        stokers.REAR_RIGHT->set_speed(motorSpeeds.speeds.rearRight);
+    void StateManager::setDriveTrainState(const DriveTrainState& motorSpeeds) {
+        stokers[MOTOR_POSITION::FRONT_LEFT]->set_speed(motorSpeeds.speeds[MOTOR_POSITION::FRONT_LEFT]);
+        stokers[MOTOR_POSITION::FRONT_RIGHT]->set_speed(motorSpeeds.speeds[MOTOR_POSITION::FRONT_RIGHT]);
+        stokers[MOTOR_POSITION::REAR_LEFT]->set_speed(motorSpeeds.speeds[MOTOR_POSITION::REAR_LEFT]);
+        stokers[MOTOR_POSITION::REAR_RIGHT]->set_speed(motorSpeeds.speeds[MOTOR_POSITION::REAR_RIGHT]);
         setServoSteeringAngle(motorSpeeds, CONFIG::Handedness::LEFT);
         setServoSteeringAngle(motorSpeeds, CONFIG::Handedness::RIGHT);
 

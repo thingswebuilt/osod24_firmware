@@ -9,6 +9,7 @@
 #include "hardware/timer.h"
 #include "motor2040.hpp"
 #include "drivetrain_config.h"
+#include "interfaces.h"
 #include "types.h"
 
 using namespace motor;
@@ -21,7 +22,7 @@ struct Encoders {
 };
 
 namespace STATE_ESTIMATOR {
-
+    using namespace COMMON;
     // define a State struct containing the state parameters that can be requested or tracked
     struct State {
         float x;
@@ -31,16 +32,20 @@ namespace STATE_ESTIMATOR {
         float velocity;
         float heading;
         float angularVelocity;
-        COMMON::DriveTrainState driveTrainState;
+        DriveTrainState driveTrainState;
     };
-    class StateEstimator {
+    class StateEstimator: public Subject {
     public:
         explicit StateEstimator();
 
+    protected:
         ~StateEstimator();  // Destructor to cancel the timer
+    public:
         void showValues() const;
         void estimateState();
         void publishState() const;
+        void addObserver(Observer* observer) override;
+        void notifyObservers(DriveTrainState newState) override;
 
     private:
         Encoders encoders;
@@ -48,14 +53,18 @@ namespace STATE_ESTIMATOR {
         repeating_timer_t *timer;
         State estimatedState;
         State previousState;
-        COMMON::DriveTrainState currentDriveTrainState;
+        DriveTrainState currentDriveTrainState;
         static void timerCallback(repeating_timer_t *timer);
 
     public:
-        void updateCurrentDriveTrainState(const COMMON::DriveTrainState& newDriveTrainState);
+        void updateCurrentDriveTrainState(const DriveTrainState& newDriveTrainState);
 
     private:
         void setupTimer() const;
+        Observer* observers[10];
+        int observerCount = 0;
+
+
 
     };
 

@@ -6,11 +6,25 @@
 #define OSOD_MOTOR_2040_TYPES_H
 
 namespace COMMON {
+    namespace MOTOR_POSITION {
+        enum MotorPosition {
+            FRONT_LEFT,
+            FRONT_RIGHT,
+            REAR_LEFT,
+            REAR_RIGHT,
+            MOTOR_POSITION_COUNT // always keep this last in the enum so that we can use it to get the number of elements
+        };
+    }
     struct MotorSpeeds {
-        float frontLeft;
-        float frontRight;
-        float rearLeft;
-        float rearRight;
+        float speeds[MOTOR_POSITION::MOTOR_POSITION_COUNT];
+
+        float& operator[](const MOTOR_POSITION::MotorPosition position) {
+            return speeds[position];
+        }
+
+        const float& operator[](const MOTOR_POSITION::MotorPosition position) const {
+            return speeds[position];
+        }
     };
 
     struct SteeringAngles {
