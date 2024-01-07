@@ -13,7 +13,7 @@ namespace MIXER {
         // This class implements a steering strategy for a tank-like robot.
         // It calculates the motor speeds based on the given linear and angular velocities.
     public:
-        COMMON::DriveTrainState mix(float velocity, float angularVelocity) override;
+        DriveTrainState mix(float velocity, float angularVelocity) override;
     };
 }
 

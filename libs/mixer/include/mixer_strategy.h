@@ -8,10 +8,10 @@
 #include "types.h"
 
 namespace MIXER {
-
+    using namespace COMMON;
     class MixerStrategy {
     public:
-        virtual COMMON::DriveTrainState mix(float velocity, float angularVelocity) = 0;
+        virtual DriveTrainState mix(float velocity, float angularVelocity) = 0;
     };
 }
 
