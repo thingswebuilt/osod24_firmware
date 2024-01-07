@@ -36,6 +36,19 @@ namespace COMMON {
         MotorSpeeds speeds;
         SteeringAngles angles;
     };
+
+    struct Odometry {
+        float x;
+        float y;
+        float heading;
+    };
+
+    struct Velocity {
+        float x_dot;
+        float y_dot;
+        float velocity;
+        float angular_velocity;
+    };
 }
 
 #endif //OSOD_MOTOR_2040_TYPES_H

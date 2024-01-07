@@ -21,13 +21,13 @@ namespace STATE_ESTIMATOR {
         encoders[MOTOR_POSITION::REAR_RIGHT]->init();
 
         // Initialize the State struct member variables
-        estimatedState.x = 0.0f;
-        estimatedState.xdot = 0.0f;
-        estimatedState.y = 0.0f;
-        estimatedState.ydot = 0.0f;
-        estimatedState.velocity = 0.0f;
-        estimatedState.heading = 0.0f;
-        estimatedState.angularVelocity = 0.0f;
+        estimatedState.odometry.x = 0.0f;
+        estimatedState.velocity.x_dot = 0.0f;
+        estimatedState.odometry.y = 0.0f;
+        estimatedState.velocity.y_dot = 0.0f;
+        estimatedState.velocity.velocity = 0.0f;
+        estimatedState.odometry.heading = 0.0f;
+        estimatedState.velocity.angular_velocity = 0.0f;
         estimatedState.driveTrainState.speeds[MOTOR_POSITION::FRONT_LEFT] = 0.0f;
         estimatedState.driveTrainState.speeds[MOTOR_POSITION::FRONT_RIGHT] = 0.0f;
         estimatedState.driveTrainState.speeds[MOTOR_POSITION::REAR_LEFT] = 0.0f;
@@ -46,11 +46,11 @@ namespace STATE_ESTIMATOR {
         printf("REAR_RIGHT: %ld ", encoders[MOTOR_POSITION::REAR_RIGHT]->count());
         printf("\n");
         printf("X: %f, Y: %f, Velocity: %f, Heading: %f, turn rate: %f\n", 
-           estimatedState.x, 
-           estimatedState.y, 
-           estimatedState.velocity, 
-           estimatedState.heading,
-           estimatedState.angularVelocity);
+           estimatedState.odometry.x,
+           estimatedState.odometry.y,
+           estimatedState.velocity.velocity,
+           estimatedState.odometry.heading,
+           estimatedState.velocity.angular_velocity);
     }
 
     void StateEstimator::publishState() const {
@@ -116,26 +116,28 @@ namespace STATE_ESTIMATOR {
     void StateEstimator::calculate_new_position_orientation(State& tmpState, const float distance_travelled, const float heading_change) {
         //calc a temp heading halfway between old heading and new
         //assumed to be representative of heading during distance_travelled
-        const float tempHeading = tmpState.heading + heading_change / 2;
-        tmpState.x += distance_travelled * sin(tempHeading);
-        tmpState.y += distance_travelled * cos(tempHeading);
+        const float tempHeading = tmpState.odometry.heading + heading_change / 2;
+        tmpState.odometry.x += distance_travelled * sin(tempHeading);
+        tmpState.odometry.y += distance_travelled * cos(tempHeading);
 
         //now actually update heading
-        tmpState.heading += heading_change;
+        tmpState.odometry.heading += heading_change;
 
         //constrain heading to +/-pi
-        tmpState.heading = wrap_pi(tmpState.heading);
+        tmpState.odometry.heading = wrap_pi(tmpState.odometry.heading);
     }
 
-    void StateEstimator::calculate_velocities(State& tmpState, const float left_speed, const float right_speed) {
+    Velocity StateEstimator::calculate_velocities(const float heading, const float left_speed, const float right_speed) {
         // TODO return a velocities struct instead of setting individual values
-        tmpState.velocity = (left_speed - right_speed) / 2;
-        tmpState.xdot = tmpState.velocity * sin(tmpState.heading);
-        tmpState.ydot = tmpState.velocity * cos(tmpState.heading);
+        Velocity tmpVelocity{};
+        tmpVelocity.velocity = (left_speed - right_speed) / 2;
+        tmpVelocity.x_dot = tmpVelocity.velocity * sin(heading);
+        tmpVelocity.y_dot = tmpVelocity.velocity * cos(heading);
 
         //now less accurate as we're taking the wrong component of the front wheel speeds.
         // TODO: fix this by using the IMU for heading
-        tmpState.angularVelocity= (left_speed + right_speed) / CONFIG::WHEEL_TRACK;
+        tmpVelocity.angular_velocity = (left_speed + right_speed) / CONFIG::WHEEL_TRACK;
+        return tmpVelocity;
     }
 
     MotorSpeeds StateEstimator::get_wheel_speeds(const Encoder::Capture* encoderCaptures) {
@@ -174,7 +176,7 @@ namespace STATE_ESTIMATOR {
         calculate_bilateral_speeds(tmpState.driveTrainState.speeds, tmpState.driveTrainState.angles, left_speed, right_speed);
 
         //calc all velocities
-        calculate_velocities(tmpState, left_speed, right_speed);
+        tmpState.velocity = calculate_velocities(tmpState.odometry.heading, left_speed, right_speed);
 
         // update the estimated state
         estimatedState = tmpState;

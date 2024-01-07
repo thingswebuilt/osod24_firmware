@@ -41,7 +41,7 @@ namespace STATEMANAGER {
         //printf("Velocity: %f ", requestedState.velocity);
         //printf("Angular velocity: %f ", requestedState.angularVelocity);
         //printf("\n");
-        const DriveTrainState driveTrainState = mixerStrategy->mix(requestedState.velocity, requestedState.angularVelocity);
+        const DriveTrainState driveTrainState = mixerStrategy->mix(requestedState.velocity.velocity, requestedState.velocity.angular_velocity);
         setDriveTrainState(driveTrainState);
     }
 

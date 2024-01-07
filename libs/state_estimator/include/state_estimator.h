@@ -27,13 +27,8 @@ namespace STATE_ESTIMATOR {
 
     // define a State struct containing the state parameters that can be requested or tracked
     struct State {
-        float x;
-        float xdot;
-        float y;
-        float ydot;
-        float velocity;
-        float heading;
-        float angularVelocity;
+        Velocity velocity;
+        Odometry odometry;
         DriveTrainState driveTrainState;
     };
 
@@ -76,14 +71,14 @@ namespace STATE_ESTIMATOR {
         Observer* observers[10] = {};
         int observerCount = 0;
 
-        void StateEstimator::capture_encoders(Encoder::Capture* encoderCaptures) const;
+        void capture_encoders(Encoder::Capture* encoderCaptures) const;
 
-        void StateEstimator::get_position_deltas(Encoder::Capture encoderCaptures[4], float& distance_travelled,
+        void get_position_deltas(Encoder::Capture encoderCaptures[4], float& distance_travelled,
                                                  float& heading_change) const;
 
         void calculate_new_position_orientation(State& tmpState, float distance_travelled, float heading_change);
 
-        void calculate_velocities(State& tmpState, float left_speed, float right_speed);
+        Velocity calculate_velocities(float heading, float left_speed, float right_speed);
 
         static MotorSpeeds get_wheel_speeds(const Encoder::Capture* encoderCaptures);
     };
