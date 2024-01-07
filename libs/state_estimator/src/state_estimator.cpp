@@ -9,15 +9,15 @@ namespace STATE_ESTIMATOR {
     StateEstimator *StateEstimator::instancePtr = nullptr;
 
     StateEstimator::StateEstimator() : encoders{
-            .FRONT_LEFT =new Encoder(pio0, 0, motor2040::ENCODER_A, PIN_UNUSED, Direction::NORMAL_DIR, CONFIG::COUNTS_PER_REV),
-            .FRONT_RIGHT =new Encoder(pio0, 1, motor2040::ENCODER_B, PIN_UNUSED, Direction::NORMAL_DIR, CONFIG::COUNTS_PER_REV),
-            .REAR_LEFT = new Encoder(pio0, 2, motor2040::ENCODER_C, PIN_UNUSED, Direction::NORMAL_DIR, CONFIG::COUNTS_PER_REV),
-            .REAR_RIGHT = new Encoder(pio0, 3, motor2040::ENCODER_D, PIN_UNUSED, Direction::NORMAL_DIR, CONFIG::COUNTS_PER_REV)
-    }, timer(new repeating_timer_t) {
-        encoders.FRONT_LEFT->init();
-        encoders.FRONT_RIGHT->init();
-        encoders.REAR_LEFT->init();
-        encoders.REAR_RIGHT->init();
+            [MOTOR_POSITION::FRONT_LEFT] =new Encoder(pio0, 0, motor2040::ENCODER_A, PIN_UNUSED, Direction::NORMAL_DIR, CONFIG::COUNTS_PER_REV),
+            [MOTOR_POSITION::FRONT_RIGHT] =new Encoder(pio0, 1, motor2040::ENCODER_B, PIN_UNUSED, Direction::NORMAL_DIR, CONFIG::COUNTS_PER_REV),
+            [MOTOR_POSITION::REAR_LEFT] = new Encoder(pio0, 2, motor2040::ENCODER_C, PIN_UNUSED, Direction::NORMAL_DIR, CONFIG::COUNTS_PER_REV),
+            [MOTOR_POSITION::REAR_RIGHT] = new Encoder(pio0, 3, motor2040::ENCODER_D, PIN_UNUSED, Direction::NORMAL_DIR, CONFIG::COUNTS_PER_REV)
+    }, timer(new repeating_timer_t), estimatedState(), previousState(), currentDriveTrainState() {
+        encoders[MOTOR_POSITION::FRONT_LEFT]->init();
+        encoders[MOTOR_POSITION::FRONT_RIGHT]->init();
+        encoders[MOTOR_POSITION::REAR_LEFT]->init();
+        encoders[MOTOR_POSITION::REAR_RIGHT]->init();
 
         // Initialize the State struct member variables
         estimatedState.x = 0.0f;
@@ -39,10 +39,10 @@ namespace STATE_ESTIMATOR {
     }
 
     void StateEstimator::showValues() const {
-        printf("FRONT_LEFT: %ld ", encoders.FRONT_LEFT->count());
-        printf("FRONT_RIGHT: %ld ", encoders.FRONT_RIGHT->count());
-        printf("REAR_LEFT: %ld ", encoders.REAR_LEFT->count());
-        printf("REAR_RIGHT: %ld ", encoders.REAR_RIGHT->count());
+        printf("FRONT_LEFT: %ld ", encoders[MOTOR_POSITION::FRONT_LEFT]->count());
+        printf("FRONT_RIGHT: %ld ", encoders[MOTOR_POSITION::FRONT_RIGHT]->count());
+        printf("REAR_LEFT: %ld ", encoders[MOTOR_POSITION::REAR_LEFT]->count());
+        printf("REAR_RIGHT: %ld ", encoders[MOTOR_POSITION::REAR_RIGHT]->count());
         printf("\n");
         printf("X: %f, Y: %f, Velocity: %f, Heading: %f, turn rate: %f\n", 
            estimatedState.x, 
@@ -71,10 +71,10 @@ namespace STATE_ESTIMATOR {
     void StateEstimator::estimateState() {
         
         //get current encoder state
-        const auto captureFL = encoders.FRONT_LEFT->capture();
-        const auto captureFR = encoders.FRONT_RIGHT->capture();
-        const auto captureRL = encoders.REAR_LEFT->capture();
-        const auto captureRR = encoders.REAR_RIGHT->capture();
+        const auto captureFL = encoders[MOTOR_POSITION::FRONT_LEFT]->capture();
+        const auto captureFR = encoders[MOTOR_POSITION::FRONT_RIGHT]->capture();
+        const auto captureRL = encoders[MOTOR_POSITION::REAR_LEFT]->capture();
+        const auto captureRR = encoders[MOTOR_POSITION::REAR_RIGHT]->capture();
         
         // calculate position deltas
 
@@ -171,10 +171,10 @@ namespace STATE_ESTIMATOR {
     }
 
     StateEstimator::~StateEstimator() {
-        delete encoders.FRONT_LEFT;
-        delete encoders.FRONT_RIGHT;
-        delete encoders.REAR_LEFT;
-        delete encoders.REAR_RIGHT;
+        delete encoders[MOTOR_POSITION::FRONT_LEFT];
+        delete encoders[MOTOR_POSITION::FRONT_RIGHT];
+        delete encoders[MOTOR_POSITION::REAR_LEFT];
+        delete encoders[MOTOR_POSITION::REAR_RIGHT];
         // Cancel the timer in the destructor
         cancel_repeating_timer(timer);
 

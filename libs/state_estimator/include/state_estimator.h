@@ -48,7 +48,7 @@ namespace STATE_ESTIMATOR {
         void notifyObservers(DriveTrainState newState) override;
 
     private:
-        Encoders encoders;
+        Encoder* encoders[MOTOR_POSITION::MOTOR_POSITION_COUNT];
         static StateEstimator *instancePtr;
         repeating_timer_t *timer;
         State estimatedState;
@@ -61,7 +61,7 @@ namespace STATE_ESTIMATOR {
 
     private:
         void setupTimer() const;
-        Observer* observers[10];
+        Observer* observers[10] = {};
         int observerCount = 0;
 
 
