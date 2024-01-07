@@ -4,6 +4,7 @@
 #include <cstdio>
 #include "state_estimator.h"
 #include "drivetrain_config.h"
+#include "encoder.hpp"
 
 namespace STATE_ESTIMATOR {
     StateEstimator *StateEstimator::instancePtr = nullptr;
@@ -68,79 +69,115 @@ namespace STATE_ESTIMATOR {
         }
     }
 
-    void StateEstimator::estimateState() {
-        
-        //get current encoder state
-        const auto captureFL = encoders[MOTOR_POSITION::FRONT_LEFT]->capture();
-        const auto captureFR = encoders[MOTOR_POSITION::FRONT_RIGHT]->capture();
-        const auto captureRL = encoders[MOTOR_POSITION::REAR_LEFT]->capture();
-        const auto captureRR = encoders[MOTOR_POSITION::REAR_RIGHT]->capture();
-        
-        // calculate position deltas
+    void StateEstimator::capture_encoders(Encoder::Capture* encoderCaptures) const {
+        for(int i = 0; i < MOTOR_POSITION::MOTOR_POSITION_COUNT; i++) {
+            encoderCaptures[i] = encoders[i]->capture();
+        }
+    }
 
+    float StateEstimator::wrap_pi(const float heading) {
+        //constrain heading to +/-pi
+
+        const double wrapped = heading > M_PI ? heading - M_TWOPI : heading < -M_PI ? heading + M_TWOPI : heading;
+        return static_cast<float>(wrapped);
+    }
+
+    void StateEstimator::calculate_bilateral_speeds(const MotorSpeeds& motor_speeds, const SteeringAngles steering_angles, float& left_speed, float& right_speed) {
+        left_speed = (motor_speeds[MOTOR_POSITION::FRONT_LEFT] * cos(steering_angles.left)
+                      + motor_speeds[MOTOR_POSITION::REAR_LEFT]) / 2;
+
+        // convert average wheel rotation speed to linear speed
+        left_speed = left_speed * CONFIG::WHEEL_DIAMETER / 2;
+
+        right_speed = (motor_speeds[MOTOR_POSITION::FRONT_RIGHT] * cos(steering_angles.right)
+                       + motor_speeds[MOTOR_POSITION::REAR_RIGHT]) / 2;
+        right_speed = right_speed * CONFIG::WHEEL_DIAMETER / 2;
+    }
+
+    void StateEstimator::get_position_deltas(Encoder::Capture encoderCaptures[4], float& distance_travelled, float& heading_change) const {
         // Calculate average wheel rotation delta for left and right sides
         // for the front wheels we only use the forward component of the movement
         //this should give a more accurate estimate for distance_travelled
-        // but less accurate for heading_change. 
+        // but less accurate for heading_change.
         // In future, the heading will be taken entirely from the IMU though
-        float left_travel = (captureFL.radians_delta() * cos(estimatedState.driveTrainState.angles.left)
-                             + captureRL.radians_delta()) / 2;
-        float right_travel = (captureFR.radians_delta() * cos(estimatedState.driveTrainState.angles.right)
-                              + captureRR.radians_delta()) / 2;
-        
+        float left_travel = (encoderCaptures[MOTOR_POSITION::FRONT_LEFT].radians_delta() * cos(estimatedState.driveTrainState.angles.left)
+                             + encoderCaptures[MOTOR_POSITION::REAR_LEFT].radians_delta()) / 2;
+        float right_travel = (encoderCaptures[MOTOR_POSITION::FRONT_RIGHT].radians_delta() * cos(estimatedState.driveTrainState.angles.right)
+                              + encoderCaptures[MOTOR_POSITION::REAR_RIGHT].radians_delta()) / 2;
+
         // convert wheel rotation to distance travelled in meters
         left_travel = left_travel * CONFIG::WHEEL_DIAMETER / 2;
         right_travel = right_travel * CONFIG::WHEEL_DIAMETER / 2;
 
-        const float distance_travelled = (left_travel - right_travel) / 2;
-        const float heading_change = (left_travel + right_travel) / CONFIG::WHEEL_TRACK;
+        distance_travelled = (left_travel - right_travel) / 2;
+        heading_change = (left_travel + right_travel) / CONFIG::WHEEL_TRACK;
+    }
 
-        //calculate new position and orientation
+    void StateEstimator::calculate_new_position_orientation(State& tmpState, const float distance_travelled, const float heading_change) {
         //calc a temp heading halfway between old heading and new
         //assumed to be representative of heading during distance_travelled
-        const float tempHeading = estimatedState.heading + heading_change / 2;
-        estimatedState.x = estimatedState.x + distance_travelled * sin(tempHeading);
-        estimatedState.y = estimatedState.y + distance_travelled * cos(tempHeading);
+        const float tempHeading = tmpState.heading + heading_change / 2;
+        tmpState.x += distance_travelled * sin(tempHeading);
+        tmpState.y += distance_travelled * cos(tempHeading);
 
         //now actually update heading
-        estimatedState.heading = estimatedState.heading + heading_change;
+        tmpState.heading += heading_change;
+
+        //constrain heading to +/-pi
+        tmpState.heading = wrap_pi(tmpState.heading);
+    }
+
+    void StateEstimator::calculate_velocities(State& tmpState, const float left_speed, const float right_speed) {
+        // TODO return a velocities struct instead of setting individual values
+        tmpState.velocity = (left_speed - right_speed) / 2;
+        tmpState.xdot = tmpState.velocity * sin(tmpState.heading);
+        tmpState.ydot = tmpState.velocity * cos(tmpState.heading);
+
+        //now less accurate as we're taking the wrong component of the front wheel speeds.
+        // TODO: fix this by using the IMU for heading
+        tmpState.angularVelocity= (left_speed + right_speed) / CONFIG::WHEEL_TRACK;
+    }
+
+    MotorSpeeds StateEstimator::get_wheel_speeds(const Encoder::Capture* encoderCaptures) {
+        MotorSpeeds wheelSpeeds{};
+        for(int i = 0; i < MOTOR_POSITION::MOTOR_POSITION_COUNT; i++) {
+            wheelSpeeds.speeds[static_cast<MOTOR_POSITION::MotorPosition>(i)] = encoderCaptures[i].radians_per_second();
+        }
+        return wheelSpeeds;
+    }
+
+    void StateEstimator::estimateState() {
+        // instantiate a copy of the current state
+        State tmpState = estimatedState;
         
-        //constrain heading to +/-pi 
-        if (estimatedState.heading > M_PI) {
-            estimatedState.heading -= 2 * M_PI;
-        }
-        if (estimatedState.heading < -M_PI) {
-            estimatedState.heading += 2 * M_PI;
-        }
+        //get current encoder state
+        Encoder::Capture encoderCaptures[MOTOR_POSITION::MOTOR_POSITION_COUNT];
+        capture_encoders(encoderCaptures);
+
+        // calculate position deltas
+
+        float distance_travelled = 0.0f;
+        float heading_change = 0.0f;
+        get_position_deltas(encoderCaptures, distance_travelled, heading_change);
+
+        //calculate new position and orientation
+        calculate_new_position_orientation(tmpState, distance_travelled, heading_change);
 
         //calculate speeds
 
         //get wheel speeds
-        estimatedState.driveTrainState.speeds[MOTOR_POSITION::FRONT_LEFT] = captureFL.radians_per_second();
+        tmpState.driveTrainState.speeds = get_wheel_speeds(encoderCaptures);
 
-        estimatedState.driveTrainState.speeds[MOTOR_POSITION::FRONT_RIGHT] = captureFR.radians_per_second();
-        estimatedState.driveTrainState.speeds[MOTOR_POSITION::REAR_LEFT] = captureRL.radians_per_second();
-        estimatedState.driveTrainState.speeds[MOTOR_POSITION::REAR_RIGHT] = captureRR.radians_per_second();
-
-        // average wheel speed in radians per side, accounting for angle of front wheels
-        float left_speed = (estimatedState.driveTrainState.speeds[MOTOR_POSITION::FRONT_LEFT] * cos(estimatedState.driveTrainState.angles.left)
-                             + estimatedState.driveTrainState.speeds[MOTOR_POSITION::REAR_LEFT]) / 2;
-        
-        // convert average wheel rotation speed to linear speed
-        left_speed = left_speed * CONFIG::WHEEL_DIAMETER / 2;
-
-        //repeat for right side
-        float right_speed = (estimatedState.driveTrainState.speeds[MOTOR_POSITION::FRONT_RIGHT] * cos(estimatedState.driveTrainState.angles.right)
-                             + estimatedState.driveTrainState.speeds[MOTOR_POSITION::REAR_RIGHT]) / 2;
-        right_speed = right_speed * CONFIG::WHEEL_DIAMETER / 2;
+        // calculate left and right speeds
+        float left_speed;
+        float right_speed;
+        calculate_bilateral_speeds(tmpState.driveTrainState.speeds, tmpState.driveTrainState.angles, left_speed, right_speed);
 
         //calc all velocities
-        estimatedState.velocity = (left_speed - right_speed) / 2;
-        estimatedState.xdot = estimatedState.velocity * sin(estimatedState.heading);
-        estimatedState.ydot = estimatedState.velocity * cos(estimatedState.heading);
+        calculate_velocities(tmpState, left_speed, right_speed);
 
-        //now less accurate as we're taking the wrong component of the front wheel speeds. will be taken from IMU in future
-        estimatedState.angularVelocity= (left_speed + right_speed) / CONFIG::WHEEL_TRACK;
+        // update the estimated state
+        estimatedState = tmpState;
 
         // notify observers of the new state
         notifyObservers(estimatedState.driveTrainState);
