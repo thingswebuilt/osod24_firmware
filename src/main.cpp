@@ -9,6 +9,8 @@
 #include "tank_steer_strategy.h"
 #include "ackermann_strategy.h"
 #include "drivetrain_config.h"
+#include "SerialTransfer.h"
+#include "communicator.h"
 #include "utils.h"
 #include "balance_port.h"
 #include "bno080.h"
@@ -80,11 +82,22 @@ int main() {
     auto* pAckermannSteerStrategy = new MIXER::AckermannMixer(CONFIG::WHEEL_TRACK, CONFIG::WHEEL_BASE);
     auto* pStateManager = new StateManager(pAckermannSteerStrategy, pStateEstimator);
 
+    // set up the serial transfer
+    SerialTransfer myTransfer;
+    configST myConfig;
+    myConfig.debug = false;
+    myTransfer.begin(myConfig);
 
     // set up the receiver
     // if the cmake build flag RX_PROTOCOL is CPPM, then use the CPPM receiver
     // otherwise use the SBUS receiver
     Receiver *pReceiver = getReceiver(motor::motor2040::RX_ECHO);
+
+    // set up the Communicator instance, and set the serial transfer
+    // Note that the Communicator instance is a singleton, so elsewhere in the code
+    // you can get the instance by calling Communicator::getInstance()
+    auto *pCommunicator = &Communicator::getInstance();
+    pCommunicator->setSerialTransfer(&myTransfer);
 
     // set up the navigator
     navigator = new Navigator(pReceiver, pStateManager, pStateEstimator, CONFIG::DRIVING_STYLE);
