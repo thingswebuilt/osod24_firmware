@@ -31,6 +31,7 @@ target_link_libraries(${PROJECT_NAME}
         common
         usb_serial
         serialtransfer
+        communicator
         balance_port
         bno080
         waypoint_navigation
