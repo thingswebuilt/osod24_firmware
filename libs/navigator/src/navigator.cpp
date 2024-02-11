@@ -4,6 +4,7 @@
 #include "state_estimator.h"
 #include "types.h"
 #include "drivetrain_config.h"
+#include "communicator.h"
 #include "waypoint_navigation.h"
 #include "types.h"
 
@@ -13,6 +14,8 @@ Navigator::Navigator(const Receiver* receiver,
                      CONFIG::SteeringStyle direction) {
     this->receiver = receiver;
     this->pStateManager = stateManager;
+    this->communicator_ = &Communicator::getInstance();
+    this->requestedStatePayload  = PAYLOADS::StatePayload();
     this->pStateEstimator = stateEstimator;
     driveDirection = direction;
     navigationMode = NAVIGATION_MODE::REMOTE_CONTROL;
@@ -20,6 +23,9 @@ Navigator::Navigator(const Receiver* receiver,
 
 void Navigator::navigate() {
     if (receiver->get_receiver_data()) {
+        // send payload to the communicator
+        PAYLOADS::SerialTransferAvailableStatus serial_transfer_available_status(true);
+        communicator_->sendPacket(serial_transfer_available_status);
 
         ReceiverChannelValues values = receiver->get_channel_values();
 
@@ -51,8 +57,15 @@ void Navigator::navigate() {
         }
         // TODO: use a queue to send the receiver data to the state manager
         pStateManager->requestState(requestedState);
+
+        // send the requested state via the communicator
+        requestedStatePayload.velocity = requestedState.velocity.velocity;
+        requestedStatePayload.angular_velocity = requestedState.velocity.angular_velocity;
+        communicator_->sendPacket(requestedStatePayload);
     } else {
         // printf("No receiver data available\n");
+        PAYLOADS::SerialTransferAvailableStatus serial_transfer_available_status(false);
+        communicator_->sendPacket(serial_transfer_available_status);
     }
 }
 

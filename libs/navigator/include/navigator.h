@@ -1,5 +1,6 @@
 #include "receiver.h"
 #include "statemanager.h"
+#include "communicator.h"
 #include "types.h"
 #include "interfaces.h"
 #include "drivetrain_config.h"
@@ -11,7 +12,7 @@
 using namespace COMMON;
 class Navigator: public Observer {
 public:
-    explicit Navigator(const Receiver* receiver, 
+    explicit Navigator(const Receiver* receiver,
                         STATEMANAGER::StateManager *stateManager,
                         STATE_ESTIMATOR::StateEstimator* estimator,
                         CONFIG::SteeringStyle direction);
@@ -27,6 +28,8 @@ public:
 private:
     const Receiver *receiver{};
     STATEMANAGER::StateManager *pStateManager;
+    Communicator *communicator_;
+    PAYLOADS::StatePayload requestedStatePayload;
     NAVIGATION_MODE::Mode determineMode(float signal);
     WAYPOINTS::WaypointNavigation waypointNavigator;
     STATE_ESTIMATOR::StateEstimator* pStateEstimator;

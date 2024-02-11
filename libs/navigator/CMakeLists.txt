@@ -7,6 +7,8 @@ target_link_libraries(navigator PUBLIC
         pico_cppm
         receiver
         statemanager
+        config
+        communicator
         waypoint_navigation
 )
 target_include_directories(navigator PUBLIC
