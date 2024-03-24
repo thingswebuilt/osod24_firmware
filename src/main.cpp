@@ -67,6 +67,7 @@ int main() {
     BNO08x IMU;
     while (IMU.begin(CONFIG::BNO08X_ADDR, i2c_port0)==false) {
         printf("BNO08x not detected at default I2C address. Check wiring. Freezing\n");
+        scan_i2c_bus();
         sleep_ms(1000);
     }
     IMU.enableRotationVector();
