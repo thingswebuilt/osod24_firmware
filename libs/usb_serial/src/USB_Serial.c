@@ -27,8 +27,6 @@ volatile int16_t _Received_Byte;
 *******************************************************************/
 void USB_Serial_Init(void)
 {
-	stdio_usb_init();
-
 	_Received_Byte = PICO_ERROR_TIMEOUT;
 }
 
