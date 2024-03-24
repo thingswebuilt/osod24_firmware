@@ -67,7 +67,7 @@ namespace STATE_ESTIMATOR {
         //    estimatedState.velocity.velocity,
         //    estimatedState.odometry.heading,
         //    estimatedState.velocity.angular_velocity,
-           estimatedState.tofDistances.front);
+           // estimatedState.tofDistances.front);
     }
 
     void StateEstimator::showValuesViaCSV() const {
